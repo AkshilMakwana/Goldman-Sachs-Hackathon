@@ -2739,11 +2739,8 @@ function ExploreCompanyDetail({
   setHoldings,
   livePrices = {},
 }) {
-  const [hasReadAnalysis, setHasReadAnalysis] = useState(false);
-  const [hasViewedPrice, setHasViewedPrice] = useState(false);
-  const [showGuardianWarning, setShowGuardianWarning] = useState(false);
+  const [guardianShown, setGuardianShown] = useState(false);
   const [guardianDismissed, setGuardianDismissed] = useState(false);
-  const aiInsightRef = useRef(null);
 
   const [realTradeSide, setRealTradeSide] = useState("buy");
   const [qtyInput, setQtyInput] = useState("");
@@ -2757,27 +2754,8 @@ function ExploreCompanyDetail({
   const investmentForTrade = { ...investment, price: displayPrice, dailyChangePct: displayChangePct };
 
   useEffect(() => {
-    setHasReadAnalysis(false);
-    setHasViewedPrice(false);
-    setShowGuardianWarning(false);
+    setGuardianShown(false);
     setGuardianDismissed(false);
-  }, [investment.symbol]);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setHasViewedPrice(true), 3000);
-    return () => clearTimeout(timer);
-  }, [investment.symbol]);
-
-  useEffect(() => {
-    if (!aiInsightRef.current) return;
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) setHasReadAnalysis(true);
-      },
-      { threshold: 0.3 },
-    );
-    observer.observe(aiInsightRef.current);
-    return () => observer.disconnect();
   }, [investment.symbol]);
 
   function evaluateRealTrade() {
@@ -2822,13 +2800,13 @@ function ExploreCompanyDetail({
   }
 
   function handleExecuteRealTrade() {
-    // GUARDIAN CHECK - must happen first before anything else
-    if (!guardianDismissed && (!hasReadAnalysis || !hasViewedPrice)) {
-      setShowGuardianWarning(true);
+    // GUARDIAN — show warning ONCE if not dismissed
+    if (!guardianDismissed) {
+      setGuardianShown(true);
       return;
     }
 
-    // Original trade logic below - do not change this part
+    // Original trade logic
     const result = evaluateRealTrade();
     if (!result.ok) {
       setTradeFeedback(result.message ?? "Invalid trade.");
@@ -3089,10 +3067,7 @@ function ExploreCompanyDetail({
         </div>
       </section>
 
-      <section
-        ref={aiInsightRef}
-        className="rounded-3xl border border-[#F5C542]/30 bg-[#F5C542]/10 p-5"
-      >
+      <section className="ai-insight-section rounded-3xl border border-[#F5C542]/30 bg-[#F5C542]/10 p-5">
         <h3 className="text-lg font-semibold text-[#F5C542]">AI Investment Insight</h3>
         <p className="mt-2 text-sm leading-relaxed text-[#CBD5E1]">
           {generateExploreInsight({ ...investment, dailyChangePct: displayChangePct })}
@@ -3116,12 +3091,12 @@ function ExploreCompanyDetail({
         </div>
       </section>
 
-      {showGuardianWarning && (
+      {guardianShown && !guardianDismissed && (
         <div
           style={{
             position: "fixed",
             inset: 0,
-            background: "rgba(0,0,0,0.75)",
+            background: "rgba(0,0,0,0.8)",
             zIndex: 9999,
             display: "flex",
             alignItems: "center",
@@ -3141,14 +3116,13 @@ function ExploreCompanyDetail({
               fontFamily: "Inter, sans-serif",
             }}
           >
-            <div style={{ fontSize: "48px", marginBottom: "16px" }}>🛡️</div>
+            <div style={{ fontSize: "52px", marginBottom: "16px" }}>🛡️</div>
             <h3
               style={{
                 color: "#f5f8fb",
                 fontSize: "1.25rem",
                 fontWeight: "700",
-                marginBottom: "8px",
-                margin: "0 0 8px 0",
+                margin: "0 0 12px 0",
               }}
             >
               Hold on! Read before you buy.
@@ -3157,82 +3131,39 @@ function ExploreCompanyDetail({
               style={{
                 color: "#9fb0c0",
                 fontSize: "0.875rem",
-                marginBottom: "24px",
                 lineHeight: "1.6",
                 margin: "0 0 24px 0",
               }}
             >
-              Smart investors always review before buying. Check these first:
+              Smart investors always review an investment before buying. Have you read the AI analysis below?
             </p>
 
             <div
               style={{
-                textAlign: "left",
+                background: "rgba(196,122,53,0.1)",
+                border: "1px solid rgba(196,122,53,0.3)",
+                borderRadius: "10px",
+                padding: "14px",
                 marginBottom: "24px",
-                display: "flex",
-                flexDirection: "column",
-                gap: "10px",
+                fontSize: "0.8rem",
+                color: "#9fb0c0",
+                lineHeight: "1.6",
+                textAlign: "left",
               }}
             >
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "12px",
-                  padding: "12px 14px",
-                  borderRadius: "8px",
-                  background: hasViewedPrice ? "rgba(74,222,128,0.08)" : "rgba(248,113,113,0.08)",
-                  border: hasViewedPrice
-                    ? "1px solid rgba(74,222,128,0.2)"
-                    : "1px solid rgba(248,113,113,0.2)",
-                }}
-              >
-                <span style={{ fontSize: "20px" }}>{hasViewedPrice ? "✅" : "❌"}</span>
-                <span
-                  style={{
-                    color: hasViewedPrice ? "#4ade80" : "#f87171",
-                    fontSize: "0.875rem",
-                    fontWeight: "600",
-                  }}
-                >
-                  Spent time reviewing the stock
-                </span>
-              </div>
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "12px",
-                  padding: "12px 14px",
-                  borderRadius: "8px",
-                  background: hasReadAnalysis ? "rgba(74,222,128,0.08)" : "rgba(248,113,113,0.08)",
-                  border: hasReadAnalysis
-                    ? "1px solid rgba(74,222,128,0.2)"
-                    : "1px solid rgba(248,113,113,0.2)",
-                }}
-              >
-                <span style={{ fontSize: "20px" }}>{hasReadAnalysis ? "✅" : "❌"}</span>
-                <span
-                  style={{
-                    color: hasReadAnalysis ? "#4ade80" : "#f87171",
-                    fontSize: "0.875rem",
-                    fontWeight: "600",
-                  }}
-                >
-                  Read AI Investment Analysis
-                </span>
-              </div>
+              💡 Scroll down to read the <strong style={{ color: "#f5f8fb" }}>AI Investment Insight</strong> and{" "}
+              <strong style={{ color: "#f5f8fb" }}>Beginner Overview</strong> before making a decision.
             </div>
 
             <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
               <button
                 type="button"
                 onClick={() => {
-                  setShowGuardianWarning(false);
-                  aiInsightRef.current?.scrollIntoView({ behavior: "smooth" });
+                  setGuardianShown(false);
+                  document.querySelector(".ai-insight-section")?.scrollIntoView({ behavior: "smooth" });
                 }}
                 style={{
-                  padding: "13px",
+                  padding: "14px",
                   borderRadius: "10px",
                   border: "none",
                   background: "#c47a35",
@@ -3248,11 +3179,11 @@ function ExploreCompanyDetail({
                 type="button"
                 onClick={() => {
                   setGuardianDismissed(true);
-                  setShowGuardianWarning(false);
-                  setTimeout(() => handleExecuteRealTrade(), 100);
+                  setGuardianShown(false);
+                  setTimeout(() => handleExecuteRealTrade(), 50);
                 }}
                 style={{
-                  padding: "13px",
+                  padding: "14px",
                   borderRadius: "10px",
                   border: "1px solid rgba(141,191,232,0.18)",
                   background: "rgba(255,255,255,0.04)",
